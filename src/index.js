@@ -48,7 +48,13 @@ app.use('/api/localization', localizationRoutes);
 // API Documentation
 swaggerDocs(app);
 
+// this line we add to make react router work in case of other routes doesnt match
+app.get('*', (req, res) =>
+    res.sendFile(path.resolve('build', 'index.html'))
+  );
+  
 // Global error handler
 app.use(errorHandler);
+
 
 app.listen(5000, () => console.log("🚀 Server running on port 5000"));
