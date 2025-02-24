@@ -6,7 +6,7 @@ import helmet from 'helmet';
 import compression from 'compression';
 import rateLimiter from './middlewares/rateLimiter.js';
 import errorHandler from './middlewares/errorHandler.js';
-import { dbConnect } from './config/db.js';  // Make sure to destructure the import correctly
+import { dbConnect } from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
 import contentRoutes from './routes/contentRoutes.js';
 import competitorRoutes from './routes/competitorRoutes.js';
@@ -19,7 +19,7 @@ import swaggerDocs from './docs/apiDocs.js';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
 
-// Get the current directory
+// Get the current directory of the backend
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -39,10 +39,9 @@ app.use(morgan('dev'));
 app.use(helmet());
 app.use(compression());
 app.use(rateLimiter);
-app.use(express.static(resolve(__dirname, 'build')));
-app.get('*', (req, res) =>
-  res.sendFile(resolve('build', 'index.html'))
-);
+
+// Serve static files from the React build folder
+app.use(express.static(resolve(__dirname, '../build')));
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -54,15 +53,12 @@ app.use('/api/payment', paymentRoutes);
 app.use('/api/business', businessRoutes);
 app.use('/api/localization', localizationRoutes);
 
-// Serve React static files in production
-app.use(express.static(resolve(__dirname, 'build')));
-
-// Handle React routing, return all requests to React app
+// Catch-all route to serve React app
 app.get('*', (req, res) =>
-  res.sendFile(resolve('build', 'index.html'))
+  res.sendFile(resolve(__dirname, '../build', 'index.html'))
 );
 
-// API Documentation
+// Swagger API Documentation
 swaggerDocs(app);
 
 // Global error handler
