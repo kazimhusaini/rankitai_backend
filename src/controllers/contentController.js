@@ -133,105 +133,6 @@ export const generateLongDescription = async (req, res) => {
 
 puppeteer.use(StealthPlugin());
 
-// export const analyzeCompetitorContent = async (req, res) => {
-//     try {
-//         const { competitorUrl } = req.body;
-
-//         if (!competitorUrl) {
-//             return res.status(400).json({ message: "Competitor app URL is required." });
-//         }
-
-//         console.log(`🔍 Scraping competitor URL: ${competitorUrl}`);
-
-//         // Step 1: Launch Puppeteer with Stealth Mode
-//         const browser = await puppeteer.launch({ headless: "new" });
-//         const page = await browser.newPage();
-
-//         await page.setUserAgent(
-//             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-//         );
-
-//         await page.goto(competitorUrl, { waitUntil: "networkidle2", timeout: 20000 });
-
-//         // Step 2: Handle "Read More" Buttons and Expand Sections
-//         const readMoreButtons = await page.$$("button, a");
-//         for (const btn of readMoreButtons) {
-//             const text = await page.evaluate(el => el.innerText, btn);
-//             if (text.includes("Read More") || text.includes("See More")) {
-//                 console.log("ℹ️ Clicking 'Read More' to expand content...");
-//                 await btn.click();
-//                 await page.waitForTimeout(2000);
-//             }
-//         }
-
-//         // Step 3: Handle Popups & Dialogs
-//         const modalSelector = "[role='dialog'], .modal, .popup"; 
-//         if (await page.$(modalSelector)) {
-//             console.log("🟢 Modal detected! Extracting content...");
-//             await page.waitForSelector(modalSelector, { timeout: 8000 });
-
-//             // Extract content inside the modal
-//             var modalContent = await page.evaluate(() => {
-//                 return Array.from(document.querySelectorAll("[role='dialog'], .modal, .popup"))
-//                     .map(el => el.innerText)
-//                     .join("\n\n");
-//             });
-
-//             console.log(`📌 Modal Content Extracted: ${modalContent.substring(0, 200)}...`);
-//         } else {
-//             modalContent = "";
-//         }
-
-//         // Step 4: Scroll the Page to Load All Content
-//         await autoScroll(page);
-
-//         // Step 5: Extract Full Page Content (Including Modal Content)
-//         const pageContent = await page.evaluate(() => document.body.innerText.trim());
-//         const fullContent = pageContent + "\n\n" + modalContent;
-
-//         console.log(`✅ Extracted Full Page Content: ${fullContent.substring(0, 300)}...`);
-
-//         await browser.close();
-
-//         if (!fullContent) {
-//             return res.status(400).json({ message: "Failed to extract page content." });
-//         }
-
-//         // Step 6: Send Data to AI for Analysis
-//         const response = await axios.post(
-//             "https://openrouter.ai/api/v1/chat/completions",
-//             {
-//                 model: "mistralai/mistral-7b-instruct:free",
-//                 messages: [
-//                     {
-//                         role: "system",
-//                         content: "As an ASO expert, you analyzed several competitor app listings in the AI-driven content analysis and generation content."
-//                     },
-//                     {
-//                         role: "user",
-//                         content: `Analyze this competitor app listing:\n\n${fullContent}`
-//                     }
-//                 ],
-//                 max_tokens: 500,
-//                 temperature: 0.7
-//             },
-//             { headers: getHeaders() }
-//         );
-
-//         const analysis = response.data.choices?.[0]?.message?.content?.trim();
-
-//         if (!analysis) {
-//             return res.status(500).json({ message: "AI did not generate a valid analysis." });
-//         }
-
-//         res.json({ competitorContent: fullContent, analysis });
-//     } catch (error) {
-//         handleError(res, error, "Failed to analyze competitor content.");
-//     }
-// };
-
-
-// Utility function for scrolling
 export const analyzeCompetitorContent = async (req, res) => {
     try {
         const { competitorUrl } = req.body;
@@ -246,17 +147,11 @@ export const analyzeCompetitorContent = async (req, res) => {
         const browser = await puppeteer.launch({ headless: "new" });
         const page = await browser.newPage();
 
-        // Set a specific user agent
         await page.setUserAgent(
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         );
 
-        try {
-            await page.goto(competitorUrl, { waitUntil: "networkidle2", timeout: 20000 });
-        } catch (err) {
-            console.error("❌ Error loading page:", err);
-            return res.status(500).json({ message: "Failed to load competitor URL.", error: err.message });
-        }
+        await page.goto(competitorUrl, { waitUntil: "networkidle2", timeout: 20000 });
 
         // Step 2: Handle "Read More" Buttons and Expand Sections
         const readMoreButtons = await page.$$("button, a");
@@ -265,25 +160,26 @@ export const analyzeCompetitorContent = async (req, res) => {
             if (text.includes("Read More") || text.includes("See More")) {
                 console.log("ℹ️ Clicking 'Read More' to expand content...");
                 await btn.click();
-                await page.waitForTimeout(2000); // Adjust timing if necessary
+                await page.waitForTimeout(2000);
             }
         }
 
         // Step 3: Handle Popups & Dialogs
         const modalSelector = "[role='dialog'], .modal, .popup"; 
-        let modalContent = "";
         if (await page.$(modalSelector)) {
             console.log("🟢 Modal detected! Extracting content...");
             await page.waitForSelector(modalSelector, { timeout: 8000 });
 
             // Extract content inside the modal
-            modalContent = await page.evaluate(() => {
+            var modalContent = await page.evaluate(() => {
                 return Array.from(document.querySelectorAll("[role='dialog'], .modal, .popup"))
                     .map(el => el.innerText)
                     .join("\n\n");
             });
 
             console.log(`📌 Modal Content Extracted: ${modalContent.substring(0, 200)}...`);
+        } else {
+            modalContent = "";
         }
 
         // Step 4: Scroll the Page to Load All Content
@@ -302,44 +198,40 @@ export const analyzeCompetitorContent = async (req, res) => {
         }
 
         // Step 6: Send Data to AI for Analysis
-        try {
-            const response = await axios.post(
-                "https://openrouter.ai/api/v1/chat/completions",
-                {
-                    model: "mistralai/mistral-7b-instruct:free",
-                    messages: [
-                        {
-                            role: "system",
-                            content: "As an ASO expert, you analyzed several competitor app listings in the AI-driven content analysis and generation content."
-                        },
-                        {
-                            role: "user",
-                            content: `Analyze this competitor app listing:\n\n${fullContent}`
-                        }
-                    ],
-                    max_tokens: 500,
-                    temperature: 0.7
-                },
-                { headers: getHeaders() }
-            );
+        const response = await axios.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            {
+                model: "mistralai/mistral-7b-instruct:free",
+                messages: [
+                    {
+                        role: "system",
+                        content: "As an ASO expert, you analyzed several competitor app listings in the AI-driven content analysis and generation content."
+                    },
+                    {
+                        role: "user",
+                        content: `Analyze this competitor app listing:\n\n${fullContent}`
+                    }
+                ],
+                max_tokens: 500,
+                temperature: 0.7
+            },
+            { headers: getHeaders() }
+        );
 
-            const analysis = response.data.choices?.[0]?.message?.content?.trim();
+        const analysis = response.data.choices?.[0]?.message?.content?.trim();
 
-            if (!analysis) {
-                return res.status(500).json({ message: "AI did not generate a valid analysis." });
-            }
-
-            res.json({ competitorContent: fullContent, analysis });
-        } catch (error) {
-            console.error("❌ Error with AI API:", error);
-            return res.status(500).json({ message: "AI API request failed.", error: error.message });
+        if (!analysis) {
+            return res.status(500).json({ message: "AI did not generate a valid analysis." });
         }
+
+        res.json({ competitorContent: fullContent, analysis });
     } catch (error) {
-        console.error("❌ Error during competitor content analysis:", error);
-        return res.status(500).json({ message: "Failed to analyze competitor content.", error: error.message });
+        handleError(res, error, "Failed to analyze competitor content.");
     }
 };
 
+
+// Utility function for scrolling
 async function autoScroll(page) {
     await page.evaluate(async () => {
         await new Promise((resolve) => {
@@ -558,8 +450,8 @@ export const findTrendingKeywords = async (req, res) => {
             {
                 model: "mistralai/mistral-7b-instruct:free",
                 messages: [
-                    { role: "system", content: "You are an ASO expert providing  keywords for app categories." },
-                    { role: "user", content: `Find the top 10 ASO keywords for '${appCategory}' apps. 
+                    { role: "system", content: "You are an ASO expert providing trending keywords for app categories." },
+                    { role: "user", content: `Find the top 10 trending ASO keywords for '${appCategory}' apps. 
                     Return only a **JSON array** of keywords like: ["keyword1", "keyword2", "keyword3", ...].` }
                 ],
                 max_tokens: 100
