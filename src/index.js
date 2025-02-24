@@ -27,6 +27,8 @@ dbConnect();
 const app = express();
 
 // Middleware setup
+
+app.use(express.static(path.resolve(__dirname, 'build')));
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -49,9 +51,11 @@ app.use('/api/localization', localizationRoutes);
 swaggerDocs(app);
 
 // this line we add to make react router work in case of other routes doesnt match
+// this line we add to make react router work in case of other routes doesnt match
 app.get('*', (req, res) =>
-    res.sendFile(path.resolve('build', 'index.html'))
-  );
+  res.sendFile(path.resolve('build', 'index.html'))
+);
+
   
 // Global error handler
 app.use(errorHandler);
