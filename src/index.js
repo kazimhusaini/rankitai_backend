@@ -17,6 +17,7 @@ import paymentRoutes from './routes/paymentRoutes.js';
 import businessRoutes from './routes/businessRoutes.js';
 import localizationRoutes from './routes/localizationRoutes.js';
 import swaggerDocs from './docs/apiDocs.js';
+import path from 'path';
 
 // Load environment variables
 dotenv.config();
