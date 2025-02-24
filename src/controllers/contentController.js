@@ -391,9 +391,6 @@ async function autoScrollMultipage(page) {
     });
 }
 
-/**
- * Find trending ASO keywords for an app category.
- */
 // export const findTrendingKeywords = async (req, res) => {
 //     try {
 //         const { appCategory } = req.body;
@@ -416,19 +413,27 @@ async function autoScrollMultipage(page) {
 //             { headers: getHeaders() }
 //         );
 
-//         // ✅ Parse AI response correctly
-//         const rawResponse = response.data.choices?.[0]?.message?.content?.trim();
+//         // ✅ Ensure response exists
+//         const rawResponse = response?.data?.choices?.[0]?.message?.content?.trim() || "";
 
 //         let keywords = [];
-//         try {
-//             keywords = JSON.parse(rawResponse); // Ensure AI returns a valid array
-//         } catch (error) {
-//             console.log("❌ AI response was not valid JSON:", rawResponse);
+//         if (rawResponse) {
+//             try {
+//                 keywords = JSON.parse(rawResponse);
+
+//                 // Ensure response is a valid array of strings
+//                 if (!Array.isArray(keywords) || keywords.some(k => typeof k !== "string")) {
+//                     throw new Error("Invalid AI response format");
+//                 }
+//             } catch (error) {
+//                 console.error("❌ Failed to parse AI response:", rawResponse);
+//                 keywords = [];
+//             }
 //         }
 
-//         // ✅ If AI response is empty or invalid, return a proper error
-//         if (!Array.isArray(keywords) || keywords.length === 0) {
-//             return res.status(500).json({ message: "AI did not return valid keywords." });
+//         // ✅ Return proper error if AI response is invalid
+//         if (keywords.length === 0) {
+//             return res.status(500).json({ message: "AI did not return valid keywords.", rawResponse });
 //         }
 
 //         res.json({ keywords });
@@ -445,31 +450,31 @@ export const findTrendingKeywords = async (req, res) => {
             return res.status(400).json({ message: "App category is required." });
         }
 
-        const response = await axios.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            {
-                model: "mistralai/mistral-7b-instruct:free",
-                messages: [
-                    { role: "system", content: "You are an ASO expert providing trending keywords for app categories." },
-                    { role: "user", content: `Find the top 10 trending ASO keywords for '${appCategory}' apps. 
-                    Return only a **JSON array** of keywords like: ["keyword1", "keyword2", "keyword3", ...].` }
-                ],
-                max_tokens: 100
-            },
-            { headers: getHeaders() }
-        );
+        const requestData = {
+            model: "mistralai/mistral-7b-instruct:free",
+            messages: [
+                { role: "system", content: "You are an ASO expert providing trending keywords for app categories." },
+                { role: "user", content: `Find the top 10 trending ASO keywords for '${appCategory}' apps. Return only a JSON array.` }
+            ],
+            max_tokens: 100
+        };
 
-        // ✅ Ensure response exists
-        const rawResponse = response?.data?.choices?.[0]?.message?.content?.trim() || "";
+        const response = await makeApiRequest("https://openrouter.ai/api/v1/chat/completions", requestData);
 
+        // Process the response as before
+        const rawResponse = response?.choices?.[0]?.message?.content?.trim() || "";
         let keywords = [];
+
         if (rawResponse) {
             try {
-                keywords = JSON.parse(rawResponse);
-
-                // Ensure response is a valid array of strings
-                if (!Array.isArray(keywords) || keywords.some(k => typeof k !== "string")) {
-                    throw new Error("Invalid AI response format");
+                const matches = rawResponse.match(/\[.*\]/);
+                if (matches && matches[0]) {
+                    keywords = JSON.parse(matches[0]);
+                    if (!Array.isArray(keywords) || keywords.some(k => typeof k !== "string")) {
+                        throw new Error("Invalid AI response format");
+                    }
+                } else {
+                    throw new Error("No valid JSON array found in response");
                 }
             } catch (error) {
                 console.error("❌ Failed to parse AI response:", rawResponse);
@@ -477,14 +482,28 @@ export const findTrendingKeywords = async (req, res) => {
             }
         }
 
-        // ✅ Return proper error if AI response is invalid
         if (keywords.length === 0) {
             return res.status(500).json({ message: "AI did not return valid keywords.", rawResponse });
         }
 
         res.json({ keywords });
     } catch (error) {
-        handleError(res, error, "Failed to find trending keywords.");
+        console.error("❌ Failed to find trending keywords:", error);
+        res.status(504).json({ message: "An error occurred with your deployment", error: error.message });
+    }
+};
+
+// Retry mechanism
+const makeApiRequest = async (url, data, retries = 3) => {
+    try {
+        const response = await axios.post(url, data);
+        return response.data;
+    } catch (error) {
+        if (retries > 0 && error.code === 'ECONNABORTED') {
+            console.log(`Retrying... ${retries} attempts remaining`);
+            return makeApiRequest(url, data, retries - 1);
+        }
+        throw error;
     }
 };
 
