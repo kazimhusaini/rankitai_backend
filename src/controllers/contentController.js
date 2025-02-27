@@ -171,19 +171,6 @@ async function autoScrollMultipage(page) {
     });
 }
 
-// Function to handle errors
-function handleError(res, error, message) {
-    console.error(`❌ Error: ${error.message}`);
-    res.status(500).json({ message: message || "An error occurred." });
-}
-
-// Function to get headers for API requests
-function getHeaders() {
-    return {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-    };
-}
 
 // Main Function: Analyze Competitor Content
 export const analyzeCompetitorContent = async (req, res) => {
