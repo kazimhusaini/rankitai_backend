@@ -41,7 +41,7 @@ app.use(compression());
 app.use(rateLimiter);
 
 // Serve static files from the React build folder
-// app.use(express.static(resolve(__dirname, '../build')));
+app.use(express.static(resolve(__dirname, '../build')));
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -54,9 +54,9 @@ app.use('/api/business', businessRoutes);
 app.use('/api/localization', localizationRoutes);
 
 // Catch-all route to serve React app
-// app.get('*', (req, res) =>
-//   res.sendFile(resolve(__dirname, '../build', 'index.html'))
-// );
+app.get('*', (req, res) =>
+  res.sendFile(resolve(__dirname, '../build', 'index.html'))
+);
 
 // Swagger API Documentation
 swaggerDocs(app);
