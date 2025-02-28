@@ -32,29 +32,11 @@
   const app = express();
 
   // Middleware setup
-  app.use(
-    cors({
-      origin: "https://3.110.117.99",
-      credentials: true,
-    })
-  );
+  app.use(cors());
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
   app.use(morgan('dev'));
-  app.use(
-    helmet({
-      contentSecurityPolicy: {
-        directives: {
-          defaultSrc: ["'self'"],
-          scriptSrc: ["'self'", "'unsafe-inline'"],
-          connectSrc: ["'self'", "https://3.110.117.99:5000"], // Allow API requests
-          imgSrc: ["'self'", "data:", "https:"],
-          styleSrc: ["'self'", "'unsafe-inline'"],
-          fontSrc: ["'self'", "https:", "data:"],
-        },
-      },
-    })
-  );
+  app.use(helmet());
   app.use(compression());
   app.use(rateLimiter);
 
