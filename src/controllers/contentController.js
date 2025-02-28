@@ -447,11 +447,13 @@ export const findTrendingKeywords = async (req, res) => {
             {
                 model: "mistralai/mistral-7b-instruct:free",
                 messages: [
-                    { role: "system", content: "You are an ASO expert providing trending keywords for app categories." },
-                    { role: "user", content: `Find the top 10 trending ASO keywords for '${appCategory}' apps. 
+                    { role: "system", content: "You are an ASO expert generating **unique and creative** keywords for app categories." },
+                    { role: "user", content: `Generate 10 **unique, uncommon, and creative** ASO keywords for '${appCategory}' apps. 
+                    These keywords should not be based on current trends but should still be relevant and potential high-ranking ASO terms.
                     Return only a **JSON array** of keywords like: ["keyword1", "keyword2", "keyword3", ...].` }
                 ],
-                max_tokens: 100
+                
+                max_tokens: 700
             },
             { headers: getHeaders() }
         );
