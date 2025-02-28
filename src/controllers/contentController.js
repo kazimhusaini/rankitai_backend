@@ -433,7 +433,65 @@ export const analyzeMultipleUrlCompetitorContent = async (req, res) => {
 //         handleError(res, error, "Failed to find trending keywords.");
 //     }
 // };
+// old
+// export const findTrendingKeywords = async (req, res) => {
+//     try {
+//         const { appCategory } = req.body;
 
+//         if (!appCategory) {
+//             return res.status(400).json({ message: "App category is required." });
+//         }
+
+//         const response = await axios.post(
+//             "https://openrouter.ai/api/v1/chat/completions",
+//             {
+//                 model: "mistralai/mistral-7b-instruct:free",
+//                 // messages: [
+//                 //     { role: "system", content: "You are an ASO expert providing trending keywords for app categories." },
+//                 //     { role: "user", content: `Find the top 10 trending ASO keywords for '${appCategory}' apps. 
+//                 //     Return only a **JSON array** of keywords like: ["keyword1", "keyword2", "keyword3", ...].` }
+//                 // ],
+//                 messages: [
+//                     { role: "system", content: "You are an ASO expert generating **unique and creative** keywords for app categories." },
+//                     { role: "user", content: `Generate 15 **unique, uncommon, and creative** ASO keywords for '${appCategory}' apps. 
+//                     These keywords should not be based on current trends but should still be relevant and potential high-ranking ASO terms.
+//                     Return only a **JSON array** of keywords like: ["keyword1", "keyword2", "keyword3", ...].` }
+//                 ],
+                
+//                 max_tokens: 500
+//             },
+//             { headers: getHeaders() }
+//         );
+
+//         // ✅ Ensure response exists
+//         const rawResponse = response?.data?.choices?.[0]?.message?.content?.trim() || "";
+
+//         let keywords = [];
+//         if (rawResponse) {
+//             try {
+//                 keywords = JSON.parse(rawResponse);
+
+//                 // Ensure response is a valid array of strings
+//                 if (!Array.isArray(keywords) || keywords.some(k => typeof k !== "string")) {
+//                     throw new Error("Invalid AI response format");
+//                 }
+//             } catch (error) {
+//                 console.error("❌ Failed to parse AI response:", rawResponse);
+//                 keywords = [];
+//             }
+//         }
+
+//         // ✅ Return proper error if AI response is invalid
+//         if (keywords.length === 0) {
+//             return res.status(500).json({ message: "AI did not return valid keywords.", rawResponse });
+//         }
+
+//         res.json({ keywords });
+//     } catch (error) {
+//         handleError(res, error, "Failed to find trending keywords.");
+//     }
+// };
+// new
 export const findTrendingKeywords = async (req, res) => {
     try {
         const { appCategory } = req.body;
@@ -446,18 +504,10 @@ export const findTrendingKeywords = async (req, res) => {
             "https://openrouter.ai/api/v1/chat/completions",
             {
                 model: "mistralai/mistral-7b-instruct:free",
-                // messages: [
-                //     { role: "system", content: "You are an ASO expert providing trending keywords for app categories." },
-                //     { role: "user", content: `Find the top 10 trending ASO keywords for '${appCategory}' apps. 
-                //     Return only a **JSON array** of keywords like: ["keyword1", "keyword2", "keyword3", ...].` }
-                // ],
                 messages: [
-                    { role: "system", content: "You are an ASO expert generating **unique and creative** keywords for app categories." },
-                    { role: "user", content: `Generate 15 **unique, uncommon, and creative** ASO keywords for '${appCategory}' apps. 
-                    These keywords should not be based on current trends but should still be relevant and potential high-ranking ASO terms.
-                    Return only a **JSON array** of keywords like: ["keyword1", "keyword2", "keyword3", ...].` }
+                    { role: "system", content: "You are an ASO expert generating **unique and creative** keywords for app categories. Return **only a JSON array** of keywords like: [\"keyword1\", \"keyword2\", \"keyword3\", ...]." },
+                    { role: "user", content: `Generate 15 **unique, uncommon, and creative** ASO keywords for '${appCategory}' apps. Return **only a JSON array** of keywords.` }
                 ],
-                
                 max_tokens: 500
             },
             { headers: getHeaders() }
@@ -469,7 +519,9 @@ export const findTrendingKeywords = async (req, res) => {
         let keywords = [];
         if (rawResponse) {
             try {
-                keywords = JSON.parse(rawResponse);
+                // Sanitize the response to remove non-JSON text
+                const sanitizedResponse = rawResponse.replace(/^[^{[]*/, "").replace(/[^}\]]*$/, "");
+                keywords = JSON.parse(sanitizedResponse);
 
                 // Ensure response is a valid array of strings
                 if (!Array.isArray(keywords) || keywords.some(k => typeof k !== "string")) {
