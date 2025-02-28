@@ -519,17 +519,19 @@ export const findTrendingKeywords = async (req, res) => {
         let keywords = [];
         if (rawResponse) {
             try {
-                // Parse the raw response
-                const parsedResponse = JSON.parse(rawResponse);
+                // Sanitize the response to remove unexpected characters
+                const sanitizedResponse = rawResponse.replace(/[^\x20-\x7E]/g, "").trim();
 
-                // Extract the "keywords" array
-                if (parsedResponse.keywords && Array.isArray(parsedResponse.keywords)) {
-                    keywords = parsedResponse.keywords;
-                } else {
-                    throw new Error("Invalid AI response format: 'keywords' array not found");
+                // Parse the sanitized response
+                keywords = JSON.parse(sanitizedResponse);
+
+                // Ensure response is a valid array of strings
+                if (!Array.isArray(keywords) || keywords.some(k => typeof k !== "string")) {
+                    throw new Error("Invalid AI response format: Expected an array of strings");
                 }
             } catch (error) {
                 console.error("❌ Failed to parse AI response:", rawResponse);
+                console.error("Error details:", error.message);
                 keywords = [];
             }
         }
