@@ -504,30 +504,29 @@ export const findTrendingKeywords = async (req, res) => {
             "https://openrouter.ai/api/v1/chat/completions",
             {
                 model: "mistralai/mistral-7b-instruct:free",
-                temperature: 0.8, // 🔥 Increase randomness
-                top_p: 0.9, // 🔥 Increase diversity
                 messages: [
-                    { role: "system", content: "You are an ASO expert generating every time **unique and creative** keywords for app categories. Return **only a JSON array** of keywords." },
-                    { 
-                        role: "user", 
-                        content: `Generate 15 **unique, uncommon, and creative** ASO keywords for '${appCategory}' apps. Ensure each response is **different** from previous ones. Include variations based on trends, synonyms, and user intent. Add a random seed (${Math.random().toString(36).substring(7)}) for diversity.\n\nReturn **only a JSON array** of keywords.` 
-                    }
+                    { role: "system", content: "You are an ASO expert generating **unique and creative** keywords for app categories. Return **only a JSON array** of keywords like: [\"keyword1\", \"keyword2\", \"keyword3\", ...]." },
+                    { role: "user", content: `Generate 15 **unique, uncommon, and creative** ASO keywords for '${appCategory}' apps. Return **only a JSON array** of keywords.` }
                 ],
                 max_tokens: 500
             },
             { headers: getHeaders() }
         );
 
+        // ✅ Ensure response exists
         const rawResponse = response?.data?.choices?.[0]?.message?.content?.trim() || "";
 
         let keywords = [];
         if (rawResponse) {
             try {
-                const sanitizedResponse = rawResponse.replace(/^[^{[]*/, "").replace(/[^}\]]*$/, "");
-                keywords = JSON.parse(sanitizedResponse);
+                // Parse the raw response
+                const parsedResponse = JSON.parse(rawResponse);
 
-                if (!Array.isArray(keywords) || keywords.some(k => typeof k !== "string")) {
-                    throw new Error("Invalid AI response format");
+                // Extract the "keywords" array
+                if (parsedResponse.keywords && Array.isArray(parsedResponse.keywords)) {
+                    keywords = parsedResponse.keywords;
+                } else {
+                    throw new Error("Invalid AI response format: 'keywords' array not found");
                 }
             } catch (error) {
                 console.error("❌ Failed to parse AI response:", rawResponse);
@@ -535,6 +534,7 @@ export const findTrendingKeywords = async (req, res) => {
             }
         }
 
+        // ✅ Return proper error if AI response is invalid
         if (keywords.length === 0) {
             return res.status(500).json({ message: "AI did not return valid keywords.", rawResponse });
         }
