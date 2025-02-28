@@ -500,16 +500,20 @@ export const findTrendingKeywords = async (req, res) => {
             return res.status(400).json({ message: "App category is required." });
         }
 
+        // Add variability to the prompt
+        const promptVariation = `Generate 15 **unique, uncommon, and creative** ASO keywords for '${appCategory}' apps. Each keyword should be distinct and not repeated. Return **only a JSON array** of keywords. Current timestamp: ${Date.now()}`;
+
         const response = await axios.post(
             "https://openrouter.ai/api/v1/chat/completions",
             {
                 model: "mistralai/mistral-7b-instruct:free", // or "openai/gpt-4"
                 messages: [
                     { role: "system", content: "You are an ASO expert generating **unique, creative, and diverse** keywords for app categories. Avoid repeating keywords and ensure each keyword is distinct and relevant." },
-                    { role: "user", content: `Generate 15 **unique, uncommon, and creative** ASO keywords for '${appCategory}' apps. Each keyword should be distinct and not repeated. Return **only a JSON array** of keywords.` }
+                    { role: "user", content: promptVariation }
                 ],
                 max_tokens: 500,
-                temperature: 0.8 // Increase for more creativity
+                temperature: 0.8, // Increase for more randomness
+                seed: Math.floor(Math.random() * 10000) // Add a random seed (if supported)
             },
             { headers: getHeaders() }
         );
