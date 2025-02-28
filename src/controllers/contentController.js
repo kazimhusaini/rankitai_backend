@@ -505,7 +505,7 @@ export const findTrendingKeywords = async (req, res) => {
             {
                 model: "mistralai/mistral-7b-instruct:free",
                 messages: [
-                    { role: "system", content: "You are an ASO expert generating **unique and creative** keywords for app categories. Return **only a JSON array** of keywords like: [\"keyword1\", \"keyword2\", \"keyword3\", ...]." },
+                    { role: "system", content: "You are an ASO expert generating every time **unique and creative** keywords for app categories. Return **only a JSON array** of keywords like: [\"keyword1\", \"keyword2\", \"keyword3\", ...]." },
                     { role: "user", content: `Generate 15 **unique, uncommon, and creative** ASO keywords for '${appCategory}' apps. Return **only a JSON array** of keywords.` }
                 ],
                 max_tokens: 500
