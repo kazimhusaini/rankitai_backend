@@ -503,12 +503,13 @@ export const findTrendingKeywords = async (req, res) => {
         const response = await axios.post(
             "https://openrouter.ai/api/v1/chat/completions",
             {
-                model: "mistralai/mistral-7b-instruct:free",
+                model: "mistralai/mistral-7b-instruct:free", // or "openai/gpt-4"
                 messages: [
-                    { role: "system", content: "You are an ASO expert generating **unique and creative** keywords for app categories. Return **only a JSON array** of keywords like: [\"keyword1\", \"keyword2\", \"keyword3\", ...]." },
-                    { role: "user", content: `Generate 15 **unique, uncommon, and creative** ASO keywords for '${appCategory}' apps. Return **only a JSON array** of keywords.` }
+                    { role: "system", content: "You are an ASO expert generating **unique, creative, and diverse** keywords for app categories. Avoid repeating keywords and ensure each keyword is distinct and relevant." },
+                    { role: "user", content: `Generate 15 **unique, uncommon, and creative** ASO keywords for '${appCategory}' apps. Each keyword should be distinct and not repeated. Return **only a JSON array** of keywords.` }
                 ],
-                max_tokens: 500
+                max_tokens: 500,
+                temperature: 0.8 // Increase for more creativity
             },
             { headers: getHeaders() }
         );
@@ -525,13 +526,15 @@ export const findTrendingKeywords = async (req, res) => {
                 // Parse the sanitized response
                 keywords = JSON.parse(sanitizedResponse);
 
+                // Remove duplicates
+                keywords = [...new Set(keywords)];
+
                 // Ensure response is a valid array of strings
                 if (!Array.isArray(keywords) || keywords.some(k => typeof k !== "string")) {
                     throw new Error("Invalid AI response format: Expected an array of strings");
                 }
             } catch (error) {
                 console.error("❌ Failed to parse AI response:", rawResponse);
-                console.error("Error details:", error.message);
                 keywords = [];
             }
         }
