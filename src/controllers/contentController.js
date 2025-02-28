@@ -524,21 +524,15 @@ export const findTrendingKeywords = async (req, res) => {
         if (rawResponse) {
             try {
                 // Sanitize the response to remove unexpected characters
-                const sanitizedResponse = rawResponse.replace(/[^\x20-\x7E]/g, "").trim();
+                let sanitizedResponse = rawResponse.replace(/[^\x20-\x7E]/g, "").trim();
+
+                // Remove outer curly braces if they exist
+                if (sanitizedResponse.startsWith("{") && sanitizedResponse.endsWith("}")) {
+                    sanitizedResponse = sanitizedResponse.slice(1, -1).trim();
+                }
 
                 // Parse the sanitized response
-                const parsedResponse = JSON.parse(sanitizedResponse);
-
-                // Handle both object and array responses
-                if (Array.isArray(parsedResponse)) {
-                    // If the response is already an array, use it directly
-                    keywords = parsedResponse;
-                } else if (parsedResponse.keywords && Array.isArray(parsedResponse.keywords)) {
-                    // If the response is an object with a "keywords" array, extract it
-                    keywords = parsedResponse.keywords;
-                } else {
-                    throw new Error("Invalid AI response format: Expected an array or object with 'keywords' array");
-                }
+                keywords = JSON.parse(`[${sanitizedResponse}]`);
 
                 // Remove duplicates
                 keywords = [...new Set(keywords)];
