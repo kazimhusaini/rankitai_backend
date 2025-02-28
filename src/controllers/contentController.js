@@ -500,8 +500,8 @@ export const findTrendingKeywords = async (req, res) => {
             return res.status(400).json({ message: "App category is required." });
         }
 
-        // Add variability to the prompt
-        const promptVariation = `Generate 15 **unique, uncommon, and creative** ASO keywords for '${appCategory}' apps. Each keyword should be distinct and not repeated. Return **only a JSON array** of keywords. Current timestamp: ${Date.now()}`;
+        // Add more variability to the prompt
+        const promptVariation = `Generate 15 **unique, uncommon, and creative** ASO keywords for '${appCategory}' apps. Each keyword should be distinct and not repeated. Return **only a JSON array** of keywords. Current timestamp: ${Date.now()}. Random seed: ${Math.random()}`;
 
         const response = await axios.post(
             "https://openrouter.ai/api/v1/chat/completions",
@@ -512,8 +512,7 @@ export const findTrendingKeywords = async (req, res) => {
                     { role: "user", content: promptVariation }
                 ],
                 max_tokens: 500,
-                temperature: 0.8, // Increase for more randomness
-                seed: Math.floor(Math.random() * 10000) // Add a random seed (if supported)
+                temperature: 0.9 // Slightly increase temperature for more randomness
             },
             { headers: getHeaders() }
         );
@@ -528,7 +527,18 @@ export const findTrendingKeywords = async (req, res) => {
                 const sanitizedResponse = rawResponse.replace(/[^\x20-\x7E]/g, "").trim();
 
                 // Parse the sanitized response
-                keywords = JSON.parse(sanitizedResponse);
+                const parsedResponse = JSON.parse(sanitizedResponse);
+
+                // Handle both object and array responses
+                if (Array.isArray(parsedResponse)) {
+                    // If the response is already an array, use it directly
+                    keywords = parsedResponse;
+                } else if (parsedResponse.keywords && Array.isArray(parsedResponse.keywords)) {
+                    // If the response is an object with a "keywords" array, extract it
+                    keywords = parsedResponse.keywords;
+                } else {
+                    throw new Error("Invalid AI response format: Expected an array or object with 'keywords' array");
+                }
 
                 // Remove duplicates
                 keywords = [...new Set(keywords)];
@@ -539,6 +549,7 @@ export const findTrendingKeywords = async (req, res) => {
                 }
             } catch (error) {
                 console.error("❌ Failed to parse AI response:", rawResponse);
+                console.error("Error details:", error.message);
                 keywords = [];
             }
         }
