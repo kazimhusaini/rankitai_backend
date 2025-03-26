@@ -31,24 +31,40 @@ dbConnect();
 
 const app = express();
 
-// Middleware setup
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(morgan('dev'));
-app.use(helmet());
-app.use(compression());
-app.use(rateLimiter);
+// Force HTTPS in production
+app.use((req, res, next) => {
+  if (req.headers['x-forwarded-proto'] !== 'https' && process.env.NODE_ENV === 'production') {
+    return res.redirect(`https://${req.headers.host}${req.url}`);
+  }
+  next();
+});
 
-// Path to React build folder
-const buildPath = resolve(__dirname, '../build');
-app.use(express.static(buildPath)); // Serve static files
+// CORS Configuration: Allow only secure frontend origins
+const allowedOrigins = ['https://main.d3m548n2r21w3s.amplifyapp.com'];
 app.use(
-  helmet({
-    crossOriginOpenerPolicy: false, // Disables COOP
+  cors({
+    origin: allowedOrigins,
+    methods: 'GET,POST,PUT,DELETE',
+    credentials: true,
   })
 );
 
+// Middleware setup
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(morgan('dev'));
+app.use(helmet()); // Security Headers
+app.use(compression());
+app.use(rateLimiter);
+
+// Serve React frontend
+const buildPath = resolve(__dirname, '../build');
+app.use(express.static(buildPath));
+app.use(
+  helmet({
+    crossOriginOpenerPolicy: false, // Disables COOP for compatibility
+  })
+);
 
 // API Routes
 app.use('/api/auth', authRoutes);
