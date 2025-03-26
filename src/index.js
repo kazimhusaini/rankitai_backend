@@ -43,9 +43,12 @@ app.use(rateLimiter);
 // Path to React build folder
 const buildPath = resolve(__dirname, '../build');
 app.use(express.static(buildPath)); // Serve static files
-app.use(helmet({
-  crossOriginOpenerPolicy: { policy: 'same-origin' }
-}));
+app.use(
+  helmet({
+    crossOriginOpenerPolicy: false, // Disables COOP
+  })
+);
+
 
 // API Routes
 app.use('/api/auth', authRoutes);
