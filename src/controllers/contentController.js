@@ -27,35 +27,40 @@ export const generateTitle = async (req, res) => {
                     { 
                         role: "system", 
                         content: `You are a branding expert. Generate 5 short, catchy app titles using the given keywords.
-                        Return them as a pipe-separated list (|) without numbers or bullet points.
-                        Each title should be 2-5 words max and include at least one keyword.
-                        Example: "Photo Editor Pro|Snap Filter Magic|Insta Edit Studio"`
+                        Return ONLY a pipe-separated string (|) without numbers, quotes or bullet points.
+                        Format: "Title One|Title Two|Title Three"
+                        Each title should be 2-5 words max and include at least one keyword.` 
                     },
                     { 
                         role: "user", 
-                        content: `Generate 5 unique app titles using these keywords: ${keywords.join(", ")}.`
+                        content: `Keywords: ${keywords.join(", ")}`
                     }
                 ],
                 max_tokens: 100,
                 temperature: 0.9,
-                top_p: 0.95
             },
             { headers: getHeaders() }
         );
 
-        const titles = response.data?.choices?.[0]?.message?.content
+        const titleString = response.data?.choices?.[0]?.message?.content
             ?.trim()
-            ?.split('|')
-            ?.map(title => title.trim().replace(/"/g, ''))
-            ?.filter(title => title.length > 0);
+            ?.replace(/["']/g, '') // Remove any quotes
+            ?.replace(/\d+\.\s*/g, '') // Remove numbered bullets
+            ?.replace(/\n/g, '|') // Convert newlines to pipes
+            ?.replace(/\|+/g, '|') // Remove duplicate pipes
+            ?.replace(/^\||\|$/g, ''); // Remove leading/trailing pipes
 
-        if (!titles || titles.length === 0) {
+        if (!titleString) {
             return res.status(500).json({ message: "AI did not generate valid titles." });
         }
 
-        res.json({ titles });
+        res.json({ title: titleString });
     } catch (error) {
-        handleError(res, error, "Failed to generate titles.");
+        console.error("❌ Title Generation Error:", error);
+        res.status(500).json({ 
+            message: error.message || "Failed to generate titles.",
+            ...(error.response && { responseData: error.response.data })
+        });
     }
 };
 /**
