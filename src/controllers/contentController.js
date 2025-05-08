@@ -24,28 +24,40 @@ export const generateTitle = async (req, res) => {
             {
                 model: "mistralai/mistral-7b-instruct:free",
                 messages: [
-                    { role: "system", content: "You are a branding expert. Generate a short, catchy app title using the given keywords." },
-                    { role: "user", content: `Generate a unique app title using these keywords: ${keywords.join(", ")}.` }
+                    { 
+                        role: "system", 
+                        content: `You are a branding expert. Generate 5 short, catchy app titles using the given keywords.
+                        Return them as a pipe-separated list (|) without numbers or bullet points.
+                        Each title should be 2-5 words max and include at least one keyword.
+                        Example: "Photo Editor Pro|Snap Filter Magic|Insta Edit Studio"`
+                    },
+                    { 
+                        role: "user", 
+                        content: `Generate 5 unique app titles using these keywords: ${keywords.join(", ")}.`
+                    }
                 ],
-                max_tokens: 50,
+                max_tokens: 100,
                 temperature: 0.9,
                 top_p: 0.95
             },
             { headers: getHeaders() }
         );
 
-        const title = response.data?.choices?.[0]?.message?.content?.trim();
+        const titles = response.data?.choices?.[0]?.message?.content
+            ?.trim()
+            ?.split('|')
+            ?.map(title => title.trim().replace(/"/g, ''))
+            ?.filter(title => title.length > 0);
 
-        if (!title) {
-            return res.status(500).json({ message: "AI did not generate a valid title." });
+        if (!titles || titles.length === 0) {
+            return res.status(500).json({ message: "AI did not generate valid titles." });
         }
 
-        res.json({ title });
+        res.json({ titles });
     } catch (error) {
-        handleError(res, error, "Failed to generate title.");
+        handleError(res, error, "Failed to generate titles.");
     }
 };
-
 /**
  * Generate an AI-powered short description.
  */
@@ -500,47 +512,67 @@ export const findTrendingKeywords = async (req, res) => {
             return res.status(400).json({ message: "App category is required." });
         }
 
-        // Add more variability to the prompt
-        const promptVariation = `Generate 15 **unique, uncommon, and creative** ASO keywords for '${appCategory}' apps. Each keyword should be distinct and not repeated. Return **only a JSON array** of keywords. Current timestamp: ${Date.now()}. Random seed: ${Math.random()}`;
+        // More explicit prompt with clear formatting instructions
+        const promptVariation = `Generate exactly 15 unique, uncommon, and creative ASO keywords for '${appCategory}' apps. 
+        Return ONLY a valid JSON array of strings formatted like this: ["keyword1", "keyword2", ...]. 
+        Do not include any other text or explanations. 
+        Current timestamp: ${Date.now()}. Random seed: ${Math.random()}`;
 
         const response = await axios.post(
             "https://openrouter.ai/api/v1/chat/completions",
             {
-                model: "mistralai/mistral-7b-instruct:free", // or "openai/gpt-4"
+                model: "mistralai/mistral-7b-instruct:free",
                 messages: [
-                    { role: "system", content: "You are an ASO expert generating **unique, creative, and diverse** keywords for app categories. Avoid repeating keywords and ensure each keyword is distinct and relevant." },
+                    { 
+                        role: "system", 
+                        content: `You are an ASO expert generating keywords. 
+                                Respond STRICTLY with a valid JSON array of exactly 15 strings. 
+                                Format: ["keyword1", "keyword2", ...] 
+                                No additional text or explanations.` 
+                    },
                     { role: "user", content: promptVariation }
                 ],
                 max_tokens: 500,
-                temperature: 0.9 // Slightly increase temperature for more randomness
+                temperature: 0.7 // Slightly lower temperature for more consistent formatting
             },
             { headers: getHeaders() }
         );
 
-        // ✅ Ensure response exists
         const rawResponse = response?.data?.choices?.[0]?.message?.content?.trim() || "";
 
         let keywords = [];
         if (rawResponse) {
             try {
-                // Sanitize the response to remove unexpected characters
-                let sanitizedResponse = rawResponse.replace(/[^\x20-\x7E]/g, "").trim();
-
-                // Remove outer curly braces if they exist
-                if (sanitizedResponse.startsWith("{") && sanitizedResponse.endsWith("}")) {
-                    sanitizedResponse = sanitizedResponse.slice(1, -1).trim();
+                // First, try to parse directly
+                keywords = JSON.parse(rawResponse);
+                
+                // If that fails, try to extract array from potential JSON object
+                if (!Array.isArray(keywords)) {
+                    const match = rawResponse.match(/\[.*\]/s);
+                    if (match) {
+                        keywords = JSON.parse(match[0]);
+                    }
                 }
 
-                // Parse the sanitized response
-                keywords = JSON.parse(`[${sanitizedResponse}]`);
+                // Final fallback - split by lines/quotes if still not array
+                if (!Array.isArray(keywords)) {
+                    keywords = rawResponse
+                        .split('\n')
+                        .map(line => line.trim().replace(/^["']|["']$/g, ''))
+                        .filter(line => line.length > 0);
+                }
 
-                // Remove duplicates
-                keywords = [...new Set(keywords)];
-
-                // Ensure response is a valid array of strings
+                // Validate the final result
                 if (!Array.isArray(keywords) || keywords.some(k => typeof k !== "string")) {
                     throw new Error("Invalid AI response format: Expected an array of strings");
                 }
+
+                // Clean and deduplicate
+                keywords = [...new Set(
+                    keywords.map(k => k.trim())
+                           .filter(k => k.length > 0)
+                )];
+
             } catch (error) {
                 console.error("❌ Failed to parse AI response:", rawResponse);
                 console.error("Error details:", error.message);
@@ -548,9 +580,12 @@ export const findTrendingKeywords = async (req, res) => {
             }
         }
 
-        // ✅ Return proper error if AI response is invalid
         if (keywords.length === 0) {
-            return res.status(500).json({ message: "AI did not return valid keywords.", rawResponse });
+            return res.status(500).json({ 
+                message: "AI did not return valid keywords.",
+                rawResponse,
+                suggestion: "The AI might be returning malformed JSON. Try adjusting the prompt or model."
+            });
         }
 
         res.json({ keywords });
